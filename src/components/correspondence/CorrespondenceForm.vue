@@ -1,27 +1,30 @@
 <template>
   <v-form @submit.prevent="onSubmit" v-model="valid">
     <!-- Contact select -->
-    <EntitySelect
-      label="Contact"
-      :items="contacts"
+    <v-select
       v-model="form.contact"
-      title-field="label"
-      value-field="value"
-      :loading="loadingContacts"
-      placeholder="Select a contact"
+      :items="contacts"
+      item-title="label"
+      item-value="value"
+      label="Contact"
+      variant="outlined"
+      density="comfortable"
       :rules="[r.required]"
+      placeholder="Select a contact"
+      clearable
     />
 
     <!-- Type select -->
     <v-select
       v-model="form.type"
       :items="types"
-      label="Type"
       item-title="label"
       item-value="value"
+      label="Type"
       variant="outlined"
       density="comfortable"
       :rules="[r.required]"
+      clearable
     />
 
     <!-- Outcome -->
@@ -55,72 +58,79 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch, onMounted } from 'vue'
-import EntitySelect from '../common/EntitySelect.vue'
+import { reactive, ref, watch } from 'vue'
 import FormActions from '../common/FormActions.vue'
-import axios from 'axios'
-import { useAuthStore } from '../../store/auth'
 
-const props = defineProps<{ modelValue?: any; contacts?: any[] }>()
-const emit = defineEmits<{ (e:'submit', v:any): void; (e:'cancel'): void }>()
-const auth = useAuthStore()
+/**
+ * Props & Emits
+ */
+const props = defineProps<{
+  modelValue?: any
+  contacts: { label: string; value: number }[]
+}>()
 
-// Validation
-const r = { required: (v:any) => !!v || 'Required' }
+const emit = defineEmits<{
+  (e: 'update:modelValue', v: any): void
+  (e: 'submit', v: any): void
+  (e: 'cancel'): void
+}>()
+
+/**
+ * Validation
+ */
+const r = { required: (v: any) => !!v || 'Required' }
 const valid = ref(false)
 const loading = ref(false)
-const loadingContacts = ref(false)
 
-// Form state
+/**
+ * Form State
+ */
 const form = reactive<any>({
   contact: null,
   type: 'call',
   notes: '',
   outcome: '',
-  duration: null
+  duration: null,
 })
 
-// Type options
+/**
+ * Type options
+ */
 const types = [
   { label: 'Email', value: 'email' },
   { label: 'Call', value: 'call' },
   { label: 'Meeting', value: 'meeting' },
   { label: 'Text', value: 'text' },
   { label: 'LinkedIn', value: 'linkedin' },
-  { label: 'Other', value: 'other' }
+  { label: 'Other', value: 'other' },
 ]
 
-// Contacts for dropdown
-const contacts = ref<any[]>(props.contacts?.map(c => ({ label: c.name, value: c.id })) || [])
-
-// Sync with parent v-model
+/**
+ * Sync parent → local form
+ */
 watch(
   () => props.modelValue,
-  (v) => { if (v) Object.assign(form, v) },
+  (v) => {
+    if (v) Object.assign(form, v)
+  },
   { immediate: true }
 )
 
-// Load contacts if not passed
-onMounted(async () => {
-  if (!contacts.value.length) {
-    loadingContacts.value = true
-    try {
-      const { data } = await axios.get('/api/contacts/', { headers: auth.authHeader })
-      contacts.value = data.contacts.map((c:any) => ({ label: c.name, value: c.id })) || []
-    } finally {
-      loadingContacts.value = false
-    }
-  }
-})
+/**
+ * Sync local form → parent
+ */
+watch(
+  form,
+  (v) => {
+    emit('update:modelValue', { ...v })
+  },
+  { deep: true }
+)
 
-// Submit form
+/**
+ * Submit form
+ */
 function onSubmit() {
-  emit('submit', {
-    contact: form.contact,
-    type: form.type,
-    notes: form.notes?.trim(),
-    outcome: form.outcome?.trim(),
-    duration: form.duration
-  })
+  emit('submit', { ...form })
 }
 </script>

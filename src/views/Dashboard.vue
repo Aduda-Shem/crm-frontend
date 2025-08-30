@@ -47,7 +47,7 @@
     <v-row class="mt-6">
       <v-col cols="12">
         <v-card class="pa-4 audit-card">
-          <h3>Recent Audit Entries</h3>
+          <h3>Recent Audit Entries ({{ counts.audit_entries_total }})</h3>
           <v-simple-table dense>
             <thead>
               <tr>
@@ -64,7 +64,7 @@
                 <td>{{ entry.action }}</td>
                 <td>{{ entry.model }}</td>
                 <td>{{ entry.object_id }}</td>
-                <td>{{ formatDate(entry.created_at || entry.timestamp) }}</td>
+                <td>{{ formatDate(entry.created_at) }}</td>
               </tr>
               <tr v-if="recent.audit_entries.length === 0">
                 <td colspan="5" class="text-center text-caption">
@@ -100,6 +100,7 @@ import DonutChart from "../components/common/DonutChart.vue";
 const auth = useAuthStore();
 const snackbar = ref({ show: false, message: "", color: "" });
 
+// Counts
 const counts = reactive({
   leads_total: 0,
   contacts_total: 0,
@@ -109,6 +110,7 @@ const counts = reactive({
   audit_entries_total: 0,
 });
 
+// Recent data
 const recent = reactive({
   leads: [],
   contacts: [],
@@ -118,42 +120,26 @@ const recent = reactive({
   audit_entries: [],
 });
 
+// Charts
 const charts = reactive({
   leads_by_status: [],
   reminders_by_status: [],
 });
 
+// Stat cards
 const statCards = reactive([
-  {
-    key: "leads",
-    label: "Leads",
-    value: counts.leads_total,
-    icon: "mdi-account-multiple",
-  },
-  {
-    key: "contacts",
-    label: "Contacts",
-    value: counts.contacts_total,
-    icon: "mdi-account",
-  },
-  {
-    key: "reminders",
-    label: "Reminders",
-    value: counts.reminders_total,
-    icon: "mdi-bell-outline",
-  },
-  {
-    key: "audit",
-    label: "Audit Entries",
-    value: counts.audit_entries_total,
-    icon: "mdi-file-document-outline",
-  },
+  { key: "leads", label: "Leads", value: counts.leads_total, icon: "mdi-account-multiple" },
+  { key: "contacts", label: "Contacts", value: counts.contacts_total, icon: "mdi-account" },
+  { key: "reminders", label: "Reminders", value: counts.reminders_total, icon: "mdi-bell-outline" },
+  { key: "audit_entries", label: "Audit Entries", value: counts.audit_entries_total, icon: "mdi-file-document-outline" },
 ]);
 
+// Auth headers
 function headersAuth() {
   return auth?.authHeader || {};
 }
 
+// Fetch dashboard data
 async function fetchDashboard() {
   try {
     const res = await api.get("/dashboard/", { headers: headersAuth() });
@@ -161,24 +147,22 @@ async function fetchDashboard() {
     Object.assign(recent, res.data.recent);
     Object.assign(charts, res.data.charts);
 
-    // Update stat cards dynamically
+    // Update stat card values
     statCards.forEach(
-      (card) => (card.value = counts[`${card.key}_total`] ?? card.value)
+      (card) => (card.value = counts[card.key] ?? counts[`${card.key}_total`] ?? 0)
     );
   } catch (err: any) {
     console.error(err);
-    snackbar.value = {
-      show: true,
-      message: "Failed to fetch dashboard",
-      color: "error",
-    };
+    snackbar.value = { show: true, message: "Failed to fetch dashboard", color: "error" };
   }
 }
 
+// Refresh handler
 function refresh() {
   fetchDashboard();
 }
 
+// Format ISO date
 function formatDate(dateStr: string) {
   return dateStr ? new Date(dateStr).toLocaleString() : "-";
 }
@@ -195,50 +179,22 @@ onMounted(fetchDashboard);
     justify-content: space-between;
     border-radius: 12px;
     transition: transform 0.2s ease;
-    &:hover {
-      transform: translateY(-2px);
-    }
+    &:hover { transform: translateY(-2px); }
   }
   .stat-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
-  .stat-label {
-    color: #6b7280;
-    font-weight: 500;
-  }
-  .stat-value {
-    margin-top: 8px;
-    font-weight: 600;
-    font-size: 1.6rem;
-    color: #111827;
-  }
+  .stat-label { color: #6b7280; font-weight: 500; }
+  .stat-value { margin-top: 8px; font-weight: 600; font-size: 1.6rem; color: #111827; }
 
-  .chart-card {
-    border-radius: 12px;
-    min-height: 300px;
-  }
-  .chart-title {
-    margin-bottom: 16px;
-    color: #111827;
-    font-weight: 600;
-  }
+  .chart-card { border-radius: 12px; min-height: 300px; }
+  .chart-title { margin-bottom: 16px; color: #111827; font-weight: 600; }
 
-  .audit-card {
-    border-radius: 12px;
-    overflow-x: auto;
-  }
-  table {
-    width: 100%;
-  }
-  th {
-    color: #6b7280;
-    font-weight: 500;
-  }
-  td {
-    font-weight: 400;
-    color: #111827;
-  }
+  .audit-card { border-radius: 12px; overflow-x: auto; }
+  table { width: 100%; }
+  th { color: #6b7280; font-weight: 500; }
+  td { font-weight: 400; color: #111827; }
 }
 </style>

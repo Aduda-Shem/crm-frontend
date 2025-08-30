@@ -17,7 +17,13 @@
     </DataTable>
 
     <!-- Floating Add Button -->
-    <v-btn color="primary" class="position-fixed" style="right:24px; bottom:24px" icon="mdi-plus" @click="openCreate" />
+    <v-btn
+      color="primary"
+      class="position-fixed"
+      style="right:24px; bottom:24px"
+      icon="mdi-plus"
+      @click="openCreate"
+    />
 
     <!-- Correspondence Modal -->
     <v-dialog v-model="dialog" max-width="640">
@@ -48,53 +54,70 @@ import axios from 'axios'
 const auth = useAuthStore()
 const ui = useUiStore()
 
-// Table state
+// Table headers
 const headers = [
   { title: 'Contact', key: 'contact_name' },
   { title: 'Type', key: 'type' },
+  { title: 'Created At', key: 'created_at' },
   { title: 'Outcome', key: 'outcome' },
-  { title: 'Notes', key: 'notes' },
+  { title: 'Created By', key: 'created_by_username' },
   { title: 'Duration', key: 'duration' },
   { title: 'Actions', key: 'actions', sortable: false, width: 120 }
 ]
 
+// State
 const items = ref<any[]>([])
 const total = ref(0)
 const loading = ref(false)
 const query = reactive({ page: 1, pageSize: 15, search: '' })
 
 // Contacts
-const contacts = ref<any[]>([])
+const contacts = ref<{ label: string; value: number }[]>([])
 const loadingContacts = ref(false)
 
 // Modal state
 const dialog = ref(false)
 const current = ref<any>(null)
 
-// Load contacts from backend
+/**
+ * Utility: resolve contact name by ID
+ */
+function resolveContactName(contactId: number, fallback?: string): string {
+  const found = contacts.value.find(c => c.value === contactId)
+  return found ? found.label : (fallback || '-')
+}
+
+/**
+ * Load contacts from backend
+ */
 async function loadContacts() {
   loadingContacts.value = true
   try {
     const { data } = await axios.get('/api/contacts/', { headers: auth.authHeader })
-    contacts.value = data.contacts?.map((c:any) => ({ label: c.name, value: c.id })) || []
+    contacts.value = data.contacts?.map((c: any) => ({
+      label: c.name,
+      value: c.id
+    })) || []
   } finally {
     loadingContacts.value = false
   }
 }
 
-// Load correspondence for table
+/**
+ * Load correspondence for table
+ */
 async function reload() {
   loading.value = true
   try {
     const params: any = { page: query.page, rows: query.pageSize }
     if (query.search) params.search = query.search
-    const data = await getCorrespondence(params, auth.authHeader)
 
+    const data = await getCorrespondence(params, auth.authHeader)
     const correspondenceArray = data.correspondence || []
 
-    items.value = correspondenceArray.map((r:any) => ({
+    items.value = correspondenceArray.map((r: any) => ({
       ...r,
-      contact_name: contacts.value.find(c => c.value === r.contact)?.label || r.contact_name || '-'
+      contact_name: resolveContactName(r.contact, r.contact_name)
     }))
 
     total.value = data.total ?? items.value.length
@@ -103,10 +126,12 @@ async function reload() {
   }
 }
 
-// Modal open
+/**
+ * Modal open (create)
+ */
 function openCreate() {
   current.value = {
-    contact: contacts.value[0]?.value || null,
+    contact: contacts.value[0]?.value || null, // store as ID
     type: 'call',
     notes: '',
     outcome: '',
@@ -115,25 +140,41 @@ function openCreate() {
   dialog.value = true
 }
 
-// Modal edit
-function edit(item:any) {
-  current.value = { ...item, contact: item.contact }
+/**
+ * Modal edit
+ */
+function edit(item: any) {
+  current.value = {
+    ...item,
+    contact: typeof item.contact === 'object' ? item.contact.value : item.contact // ensure ID
+  }
   dialog.value = true
 }
 
-// Save correspondence
+/**
+ * Save correspondence
+ */
 async function save() {
   const payload = { ...current.value }
+
+  // Ensure contact is always stored as ID
+  const contactId = typeof payload.contact === 'object' ? payload.contact.value : payload.contact
+  payload.contact = contactId
+
+  // Derive display label
+  const contactLabel = resolveContactName(contactId, payload.contact_name)
+
   try {
     if (payload.id) {
       await updateCorrespondence(payload, auth.authHeader)
       const idx = items.value.findIndex(i => i.id === payload.id)
-      if (idx >= 0)
-        items.value[idx] = { ...payload, contact_name: contacts.value.find(c => c.value === payload.contact)?.label || payload.contact_name || '-' }
+      if (idx >= 0) {
+        items.value[idx] = { ...payload, contact_name: contactLabel }
+      }
       ui.toast('Saved', 'success')
     } else {
       const created = await createCorrespondence(payload, auth.authHeader)
-      items.value.unshift({ ...created, contact_name: contacts.value.find(c => c.value === created.contact)?.label || created.contact_name || '-' })
+      items.value.unshift({ ...created, contact_name: contactLabel })
       total.value++
       ui.toast('Created', 'success')
     }
@@ -144,8 +185,10 @@ async function save() {
   }
 }
 
-// Delete correspondence
-async function tryDelete(item:any) {
+/**
+ * Delete correspondence
+ */
+async function tryDelete(item: any) {
   const confirm = await ui.ask('Delete Correspondence', `Delete "${item.notes}"?`)
   if (!confirm) return
   const backup = [...items.value]
@@ -161,15 +204,19 @@ async function tryDelete(item:any) {
   }
 }
 
-// Handle table query updates
-function onQuery(q:{ page:number; pageSize:number; search:string }) {
+/**
+ * Handle table query updates
+ */
+function onQuery(q: { page: number; pageSize: number; search: string }) {
   query.page = q.page
   query.pageSize = q.pageSize
   query.search = q.search
   reload()
 }
 
-// Initial load
+/**
+ * Initial load
+ */
 onMounted(async () => {
   await loadContacts()
   reload()
