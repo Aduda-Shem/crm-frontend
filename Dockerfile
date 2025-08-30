@@ -1,7 +1,12 @@
 FROM node:20-alpine
 WORKDIR /app
-COPY frontend/package.json ./
+
+# copy only package.json + lock file for caching
+COPY package*.json ./
 RUN npm install --silent || true
-COPY frontend/ /app
+
+# copy all source code
+COPY . .
+
 EXPOSE 5173
 CMD ["npm", "run", "dev", "--", "--host"]

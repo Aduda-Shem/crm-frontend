@@ -61,7 +61,7 @@ const headers = [
 const items = ref<any[]>([])
 const total = ref(0)
 const loading = ref(false)
-const query = reactive({ page: 1, pageSize: 10, search: '' })
+const query = reactive({ page: 1, pageSize: 15, search: '' })
 
 // Contacts
 const contacts = ref<any[]>([])

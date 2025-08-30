@@ -132,7 +132,7 @@ const headers = [
 const items = ref<any[]>([])
 const total = ref(0)
 const loading = ref(false)
-const query = reactive({ page: 1, pageSize: 10, search: "" })
+const query = reactive({ page: 1, pageSize: 15, search: "" })
 const filters = reactive({
   search: "",
   status: "" as "" | "NEW" | "IN_PROGRESS" | "WON" | "LOST",
