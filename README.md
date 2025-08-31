@@ -36,7 +36,7 @@ frontend/
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Aduda-Shem/crm-frontend
    cd frontend
    ```
 
@@ -110,7 +110,7 @@ frontend/
 - **Session Storage**: Temporary data during session
 - **Memory**: Reactive state for current session
 
-## 🔌 API Integration
+## API Integration
 
 ### Service Layer Architecture
 ```typescript
